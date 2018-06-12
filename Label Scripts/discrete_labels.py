@@ -2,11 +2,13 @@
 """
 Created on Tue Jun 12 10:59:15 2018
 
-@author: groot
+@author: Suhas Vittal
 """
 
 import numpy as np
 import re
+
+from lipid_classifier import classify_lipid
 
 # This script aims to discretize labels amongst phenotypes.
 # The algorithm is as follows. For a list L of phenotypes, we
@@ -24,7 +26,8 @@ import re
 # some EVEN number N by finding exactly (N/2)-1 classes btwn an extremum and
 # the mean.
 
-# NOTE THAT THE DISCRETE CLASSES ARE NOT UNIFORM AND ARE AFFECTED BY SPREAD.
+# NOTE THAT THE DISCRETE CLASSES ARE NOT UNIFORM AND ARE AFFECTED BY THE SPREAD.
+# OF THE DISTRIBUTION.
 
 def discretize(column, N=4):
     # column is a vector. Please represent as some array type.
@@ -42,7 +45,6 @@ def discretize(column, N=4):
     maximum = -1
     mean = 0
     
-    print("\tcolumn name: " + str(column[0]))
     while k < len(column):
         #print("\tComponent No.: " + str(k))
         
@@ -63,11 +65,7 @@ def discretize(column, N=4):
         k += 1
     
     X = (N/2)-1 # number of classes between an extremum and the mean.
-    
-    print("\tmean: " + str(mean))
-    print("\tmin: " + str(minimum))
-    print("\tmax: " + str(maximum))
-    
+
     # first check if a value V > mean. If so, z = floor(V / (mean-max))
     # if z > X, then within ((n-1)X -> max)
     
@@ -78,20 +76,26 @@ def discretize(column, N=4):
             dcol.append(val)
             continue
         
-        if mean == 0 and minimum == 0 and maximum == 0:
-            dcol.append(0)
-        elif val > mean:
-            z = np.floor((val-mean) / ((maximum-mean)/X))
-            if z > X:
-                z = X
-            cl = z + (X+1)
-            dcol.append(cl)
+        if X > 0:
+            if mean == 0 and minimum == 0 and maximum == 0:
+                dcol.append(0)
+            elif val > mean:
+                z = np.round((val-mean) / ((maximum-mean)/X))
+                if z > X:
+                    z = X
+                cl = z + (X+1)
+                dcol.append(cl)
+            else:
+                z = np.round((val-minimum) / ((mean-minimum)/X))
+                if z < 0:
+                    z = 0
+                cl = z
+                dcol.append(cl)
         else:
-            z = np.floor((val-minimum) / ((mean-minimum)/X))
-            if z < 0:
-                z = 0
-            cl = z
-            dcol.append(cl)
+            if val > mean:
+                dcol.append(1)
+            else:
+                dcol.append(0)
     
     return (dcol, minimum, mean, maximum, X)
 
@@ -105,53 +109,62 @@ def get_col(matrix, i):
     # gets i-th column of given matrix
     
     col = []
+    
     for j in range(len(matrix)):
         col.append(matrix[j][i])
     
     return col
 
 if __name__ == "__main__":
-    N = 6 # number of classes. Please adjust as necessary.
+    N = 2 # number of classes. Please adjust as necessary.
     
     # We will discriminate phenotypes from other datatypes using regex.
     # Currently, this discriminates against:
     #   miRNA
-    file = "phen-miRNA.csv"
+    
+    file = "phen-lipid.csv"
     
     reader = open(file, "r")
-    dwriter = open("phen-miRNA_discrete.csv", "w+")
-    iwriter = open("phen-miRNA_discrete-info.csv", "w+")
+    dwriter = open(file + "_discrete.csv", "w+")
+    iwriter = open(file + "_discrete-info.csv", "w+")
     
     lines = [line.split(",") for line in reader.readlines()]
     dataset = []
+    xdome = []
     
     first = True
     upp_bnd = 0
     for line in lines:
         nl = []
+        xl = []
         if first:
             first = False
             for i in range(len(line)):
                 if re.match("hsa", line[i]):
-                    upp_bnd = i
-                    break
+                    if upp_bnd == 0:
+                        upp_bnd = i
+                    xl.append(line[i])
+                elif i > 288: # it is a lipid, i >= 288 is bug fix ;)
+                    if upp_bnd == 0:
+                        upp_bnd = i
+                    xl.append(line[i])
                 else:
                     nl.append(line[i])
         else:
-            for i in range(upp_bnd):
-                nl.append(line[i])
+            for i in range(len(line)):
+                if i < upp_bnd:
+                    nl.append(line[i])
+                else:
+                    xl.append(line[i])
         dataset.append(nl)
+        xdome.append(xl)
                     
-    
-    
     # for each column, we would like to make the edit.
-    
-    #print(dataset)
+
     iwriter.write("Column Name" + ",".join([str(i) for i in range(N)]))
     
     new_lines = ["" for _ in range(len(dataset))]
     for i in range(len(dataset[0])):
-        print("column: " + str(i))
         new_col, m, mean, M, X = discretize(get_col(dataset, i), N=N)
         
         X = int(X)
@@ -164,7 +177,6 @@ if __name__ == "__main__":
         iwriter.write(info_line)
         
         
-        print(len(dataset),len(new_col))
         for j in range(len(new_col)):
             if i == 0:
                 new_lines[j] += str(new_col[j])
@@ -172,12 +184,12 @@ if __name__ == "__main__":
                 new_lines[j] += "," + str(new_col[j])
     
     first = True
-    for line in new_lines:
+    for i in range(len(new_lines)):
         if first:
             first = False
-            dwriter.write(line)
+            dwriter.write(new_lines[i].strip() + "," + ",".join(xdome[i]).strip())
         else:
-            dwriter.write("\n" + line)
+            dwriter.write("\n" + new_lines[i].strip() + "," + ",".join(xdome[i]).strip())
             
     reader.close()
     dwriter.close()
