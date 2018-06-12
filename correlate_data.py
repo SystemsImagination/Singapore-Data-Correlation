@@ -7,7 +7,7 @@ print(sys.argv)
 if len(sys.argv) < 7:
 	print("You didn't pass all parameters (6)")
 
-"""
+
 file_destination = sys.argv[1]
 file_destination2 = sys.argv[2]
 
@@ -30,4 +30,4 @@ def correlate_data(df):
                
        
 correlate_data(df4)
-""" 
+ 
