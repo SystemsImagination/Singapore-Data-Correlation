@@ -29,7 +29,7 @@ def discretize(column, N=4):
     # N is the number of classes, and is an EVEN non-negative integer.
     
     label = column[0] # the label.
-    dcol = [label] # the discrete column; the output.
+    dcol = [] # the discrete column; the output.
     
     k = 1
     
@@ -37,12 +37,20 @@ def discretize(column, N=4):
     maximum = -1
     mean = 0
     
+    print("\tcolumnlength: " + str(len(column)))
     while k < len(column):
+        #print("\tComponent No.: " + str(k))
+        
         dp = column[k]
+        if is_number_regex(dp):
+            dp = float(dp)
+        else:
+            k += 1
+            continue
         
         if minimum < 0 or minimum > dp:
             minimum = dp
-        elif maximum > 0 or maximum < dp:
+        elif maximum < 0 or maximum < dp:
             maximum = dp
             
         mean = (mean*(k-1) + dp)/k
@@ -51,11 +59,23 @@ def discretize(column, N=4):
     
     X = (N/2)-1 # number of classes between an extremum and the mean.
     
+    print("\tmean: " + str(mean))
+    print("\tmin: " + str(minimum))
+    print("\tmax: " + str(maximum))
+    
     # first check if a value V > mean. If so, z = floor(V / (mean+max))
     # if z > X, then within ((n-1)X -> max)
     
     for val in column:
-        if val > mean:
+        if is_number_regex(val):
+            val = float(val)
+        else:
+            dcol.append(val)
+            continue
+        
+        if mean == 0 and minimum == 0 and maximum == 0:
+            dcol.append(0)
+        elif val > mean:
             z = np.floor(val / ((mean+maximum)/X))
             cl = z + (X+1)
             dcol.append(cl)
@@ -65,6 +85,21 @@ def discretize(column, N=4):
             dcol.append(cl)
     
     return dcol
+
+def is_number_regex(s):
+    """ Returns True is string is a number. """
+    if re.match("^\d+?\.\d+?$", s) is None:
+        return s.isdigit()
+    return True
+
+def get_col(matrix, i):
+    # gets i-th column of given matrix
+    
+    col = []
+    for j in range(len(matrix)):
+        col.append(matrix[j][i])
+    
+    return col
 
 if __name__ == "__main__":
     N = 6 # number of classes. Please adjust as necessary.
@@ -77,16 +112,39 @@ if __name__ == "__main__":
     reader = open(file, "r")
     writer = open("phen-miRNA_discrete.csv", "w+")
     
-    lines = reader.readlines()
-    dataset = [lines[0]]
-    dataset.extend([[float(x) for x in line.split(",")] for line in lines[1:]])
+    lines = [line.split(",") for line in reader.readlines()]
+    dataset = []
+    
+    first = True
+    upp_bnd = 0
+    for line in lines:
+        nl = []
+        if first:
+            first = False
+            for i in range(len(line)):
+                if re.match("hsa", line[i]):
+                    upp_bnd = i
+                    break
+                else:
+                    nl.append(line[i])
+        else:
+            for i in range(upp_bnd):
+                nl.append(line[i])
+        dataset.append(nl)
+                    
+    
     
     # for each column, we would like to make the edit.
-    new_lines = ["" for _ in len(dataset)]
+    
+    #print(dataset)
+    
+    new_lines = ["" for _ in range(len(dataset))]
     for i in range(len(dataset[0])):
-        new_col = discretize(dataset[:,i], N=N)
+        print("column: " + str(i))
+        new_col = discretize(get_col(dataset, i), N=N)
         
-        for j in len(new_col):
+        print(len(dataset),len(new_col))
+        for j in range(len(new_col)):
             if i == 0:
                 new_lines[j] += str(new_col[j])
             else:
