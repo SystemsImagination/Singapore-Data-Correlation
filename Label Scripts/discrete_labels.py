@@ -8,6 +8,8 @@ Created on Tue Jun 12 10:59:15 2018
 import numpy as np
 import re
 
+import os
+
 from lipid_classifier import classify_lipid
 
 # This script aims to discretize labels amongst phenotypes.
@@ -36,7 +38,6 @@ def discretize(column, N=4):
     # returns new column, and statistics used to create column.
     # Format: (col, min, mean, max, X)
     
-    label = column[0] # the label.
     dcol = [] # the discrete column; the output.
     
     k = 1
@@ -44,6 +45,8 @@ def discretize(column, N=4):
     minimum = -1
     maximum = -1
     mean = 0
+    
+    already_discrete = True # not guilty until proven innocent :)
     
     while k < len(column):
         #print("\tComponent No.: " + str(k))
@@ -55,6 +58,11 @@ def discretize(column, N=4):
             k += 1
             continue
         
+        if dp % 1 != 0:
+            already_discrete = False # N % 1 tests whether or not a number is 
+            # an integer, thanks to the continuous extension of the MOD function
+            # to the reals.
+        
         if minimum == -1 or minimum > dp:
             minimum = dp
         elif maximum == -1 or maximum < dp:
@@ -65,6 +73,9 @@ def discretize(column, N=4):
         k += 1
     
     X = (N/2)-1 # number of classes between an extremum and the mean.
+
+    if already_discrete:
+        return (column, minimum, mean, maximum, -1) # no change necessary
 
     # first check if a value V > mean. If so, z = floor(V / (mean-max))
     # if z > X, then within ((n-1)X -> max)
@@ -111,6 +122,9 @@ def get_col(matrix, i):
     col = []
     
     for j in range(len(matrix)):
+        if j % 200 == 0:
+            print(len(matrix[j]),i)
+        
         col.append(matrix[j][i])
     
     return col
@@ -122,13 +136,14 @@ if __name__ == "__main__":
     # Currently, this discriminates against:
     #   miRNA
     
-    file = "phen-lipid.csv"
+    file = "phen-lipids.tsv"
+    fname = os.path.splitext(file)[0]
     
     reader = open(file, "r")
-    dwriter = open(file + "_discrete.csv", "w+")
-    iwriter = open(file + "_discrete-info.csv", "w+")
+    dwriter = open(fname + "_discrete.csv", "w+")
+    iwriter = open(fname + "_discrete-info.csv", "w+")
     
-    lines = [line.split(",") for line in reader.readlines()]
+    lines = [line.split("\t") for line in reader.readlines()]
     dataset = []
     xdome = []
     
@@ -140,7 +155,11 @@ if __name__ == "__main__":
         if first:
             first = False
             for i in range(len(line)):
-                if re.match("hsa", line[i]):
+                
+                # PLEASE NOTE: I would prefer that miRNA and lipid values remain
+                # in completely different datasets, to avoid bugs.
+                
+                if re.match("hsa", line[i]): # it is miRNA
                     if upp_bnd == 0:
                         upp_bnd = i
                     xl.append(line[i])
@@ -168,13 +187,14 @@ if __name__ == "__main__":
         new_col, m, mean, M, X = discretize(get_col(dataset, i), N=N)
         
         X = int(X)
-        info_line = "\n" + str(new_col[0]) + ","# get name
-        classes = [m + n*(mean - m)/X for n in range(X)] # makeclasses
-        classes.extend([mean + n*(M-mean)/X for n in range(X)]) 
-        classes.append(M)
+        if X >= 0:
+            info_line = "\n" + str(new_col[0]) + ","# get name
+            classes = [m + n*(mean - m)/X for n in range(X)] # makeclasses
+            classes.extend([mean + n*(M-mean)/X for n in range(X)]) 
+            classes.append(M)
         
-        info_line += ",".join(["\"" + str(classes[i]) + "-->" + str(classes[i+1]) + "\"" for i in range(len(classes)-1)])
-        iwriter.write(info_line)
+            info_line += ",".join(["\"" + str(classes[i]) + "-->" + str(classes[i+1]) + "\"" for i in range(len(classes)-1)])
+            iwriter.write(info_line)
         
         
         for j in range(len(new_col)):

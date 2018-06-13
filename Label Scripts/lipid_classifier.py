@@ -29,7 +29,6 @@ def classify_lipid(lipid):
     elif re.match(".+?Cer", lipid) or re.match(".1P", lipid) or re.match("SPH", lipid) or re.match("SM", lipid):
         return 1
     elif re.match("S[ET]", lipid) or re.match("FC", lipid) or re.match("C.?", lipid) or re.match(".?[DGLT]?CA", lipid):
-        print(re.match("(.*)?CA", lipid))
         return 2
     elif re.match("FA", lipid):
         return 4
