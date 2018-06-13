@@ -16,33 +16,6 @@ Created on Wed Jun 13 12:49:08 2018
 # We are viewing connections between:
 res_vars = ["Gender", "BMI", "GLU_1", "CHO_1", "TG_1", "HDL_1", "CHDL_1", "LDLM_1", "HbA1c_1", "A1_1"]
 
-"""
-    Best results so far (meaning with most accurate models):
-        DG(18 1_20 3)
-        PC(33 3)
-        HexCer(d18 1 18 0)
-        SM(32 0)
-        TG(16 1_17 0_18 1)
-        PC(16 0_22 6)
-        PI(36 4)
-        PC(28 0)
-        PC(40 7)
-        PC(O-38 4)
-        PC(32 0)
-        PE(O-40 6)
-        TG(14 1_16 0_18 1)
-        LPE(18 0)
-        Cer(d18 1 20 0)
-        TG(14 1_16 1_18 0)
-        PC(35 2)
-        PC(37 5)
-        SM(37 2)
-        SM(34 3)
-        CE(18 0)
-        CE(22 5)
-        DG(18 2_20 3)
-"""
-
 import h2o
 from h2o.estimators import H2ODeepLearningEstimator
 

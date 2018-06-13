@@ -48,6 +48,6 @@ if __name__ == "__main__":
     val_Y = dataset[vc_index:, i]
     val_X = dataset[vc_index:, 289:]
     
-    score = clf.score(val_X, val_Y)
+    score = clf.score(val_X, val_Y) # Accuracy score. Higher is better.
     
     print("Score of non-linear SVM on validation data was: " + str(score))
