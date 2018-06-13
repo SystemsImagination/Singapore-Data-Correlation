@@ -42,7 +42,7 @@ if __name__ == "__main__":
     Y = dataset[:vc_index, i] # get the i-th column as the response var
     X = dataset[:vc_index, 289:] # get the lipid columns as the explanatory var
     
-    clf = svm.SVC()
+    clf = svm.SVC(kernel="poly")
     clf.fit(X, Y)
     
     val_Y = dataset[vc_index:, i]
