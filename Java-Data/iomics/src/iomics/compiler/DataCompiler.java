@@ -128,7 +128,7 @@ public class DataCompiler {
 				String[] row1 = idMap1.get(id);
 				String[] row2 = idMap2.get(id);
 				
-				String line = id + "\t" + String.join("\t", row1) + String.join("\t", row2);
+				String line = id + "\t" + String.join("\t", row1) + "\t" + String.join("\t", row2);
 				
 				writer.write("\n" + line);
 			}

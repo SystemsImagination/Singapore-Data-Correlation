@@ -68,8 +68,8 @@ if __name__ == "__main__":
     critval = 2.807 # critical value for 99.5% (as LOS = 0.01) confidence interval.
     
     # we want data outside 3*stdev
-    L = mean - 3*stdev
-    U = mean + 3*stdev
+    L = mean - 1.5*stdev
+    U = mean + 1.5*stdev
     
     print(L, U)
     
