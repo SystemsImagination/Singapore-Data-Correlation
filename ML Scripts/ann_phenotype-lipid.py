@@ -17,16 +17,17 @@ Created on Wed Jun 13 12:49:08 2018
 res_vars = ["Gender", "BMI", "GLU_1", "CHO_1", "TG_1", "HDL_1", "CHDL_1", "LDLM_1", "HbA1c_1", "A1_1"]
 
 import h2o
+import numpy as np
 from h2o.estimators import H2ODeepLearningEstimator
 
 file = "phen-lipids_discrete.csv"
-LOS = (1.00 + 0.75) / 2.0 # Above the average
 
 
 if __name__ == "__main__":
     h2o.init() # initialize localhost
     
     global_impor = set()
+    used_res = []
     
     for res in res_vars:
         h2o_df = h2o.import_file(file)
@@ -52,31 +53,51 @@ if __name__ == "__main__":
         
         model = H2ODeepLearningEstimator(model_id="ann_Lipid-" + res, 
                                          distribution="bernoulli", 
-                                         activation="Rectifier", 
-                                         hidden=[num_hlnodes],
-                                         loss="CrossEntropy")
+                                         activation="TanhWithDropout", 
+                                         hidden=[num_hlnodes, 25, num_hlnodes],
+                                         loss="CrossEntropy",
+                                         epochs=5)
+                                         
         model.train(x=exp_var, y=res, training_frame=ts, validation_frame=vs)
         
         variables = model._model_json["output"]["variable_importances"]["variable"]
         vimpor = model._model_json["output"]["variable_importances"]["scaled_importance"]
+        r2 = model.r2(valid=True)
         
-        print("Coefficient of Determination for Response " + str(res) + ": " + str(model.r2()))
+        print("Coefficient of Determination for Response " + str(res) + ": " + str(r2))
         
-        most_impor = []
-        for i in range(len(variables)):
-            im = vimpor[i] # get variable importance
-            if im > LOS: 
-                var = variables[i]
-                most_impor.append(var)
-        
-        if not global_impor:
-            # if the set is empty.
-            global_impor = set(most_impor)
-        else:
-            # take the intersection
-            global_impor = global_impor.intersection(set(most_impor))
+        if r2 > 0.5: # we want okay data. Even 0.5 is stretching it.
+            used_res.append(res)
+            
+            mean = 0
+            for im in vimpor:
+                mean += im
+            mean = mean / float(len(vimpor))
+            
+            stdev = 0
+            for x in vimpor:
+                stdev += (x - mean)**2
+            stdev = np.sqrt(stdev / float(len(vimpor)))
+            
+            critval = 2.807 # for 95% confidnece
+            
+            U_CI = mean + critval * stdev / np.sqrt(len(vimpor))
+            
+            most_impor = []
+            for i in range(len(variables)):
+                im = vimpor[i] # get variable importance
+                if im > U_CI: 
+                    var = variables[i]
+                    most_impor.append(var)
+            
+            if not global_impor:
+                # if the set is empty.
+                global_impor = set(most_impor)
+            else:
+                # take the intersection
+                global_impor = global_impor.intersection(set(most_impor))
     
-    print("\n\nImportant Variables amongst the labels " + ", ".join(res_vars) + " are:")
+    print("\n\nImportant Variables amongst the labels " + ", ".join(used_res) + " are:")
     for var in global_impor:
         print("\t" + str(var))
     

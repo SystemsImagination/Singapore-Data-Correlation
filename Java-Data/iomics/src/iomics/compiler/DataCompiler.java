@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** @author Suhas Vittal
  *  @version 0.1
@@ -28,8 +32,8 @@ public class DataCompiler {
 	public static void main(String[] args) {
 		String outputFileName = "Lipid-Transcript";
 		
-		String[] fs1 = new String[] {"117Malay_282lipids.txt","120Indian_282lipids.txt","122Chinese_282lipids.txt"};
-		String[] fs2 = new String[] {"75Malay_21649probesets.txt","96Indian_21649probesets.txt","98Chinese_21649probesets.txt"};
+		String[] fs1 = new String[] {"119Indian_274miRNAs.txt","117Chinese_274miRNAs.txt","115Malay_274miRNAs.txt"};
+		String[] fs2 = new String[] {"98Chinese_21649probesets.txt","96Indian_21649probesets.txt","75Malay_21649probesets.txt"};
 		// "fs" stands for file set. Both of these variables store an array of files with a common
 		// data type (i.e. lipid concentrations). 
 		
@@ -61,7 +65,7 @@ public class DataCompiler {
 				}
 				
 				while ((line = reader.readLine()) != null) {
-					String[] data = line.split(",");
+					String[] data = line.split("\t");
 					String id = data[0];
 					
 					String[] temp = new String[data.length - 1]; // because we don't want the id.
@@ -88,7 +92,7 @@ public class DataCompiler {
 				}
 				
 				while ((line = reader.readLine()) != null) {
-					String[] data = line.split(",");
+					String[] data = line.split("\t");
 					String id = data[0];
 					
 					String[] temp = new String[data.length - 1]; // because we don't want the id.
@@ -118,18 +122,15 @@ public class DataCompiler {
 			
 			writer.write(ln_lbls); // write the labels as the first line of the new file.
 			
-			for (String id : idMap1.keySet()) {
-				if (!idMap2.keySet().contains(id)) {
-					System.out.println("Rest in baguette");
-					continue; // We want ids that are shared btwn both maps.
-				} else {
-					String[] row1 = idMap1.get(id);
-					String[] row2 = idMap2.get(id);
-					
-					String line = id + "\t" + String.join("\t", row1) + String.join("\t", row2);
-					
-					writer.write("\n" + line);
-				}
+			Set<String> ids = intersect(idMap1.keySet(), idMap2.keySet());
+			
+			for (String id : ids) {
+				String[] row1 = idMap1.get(id);
+				String[] row2 = idMap2.get(id);
+				
+				String line = id + "\t" + String.join("\t", row1) + String.join("\t", row2);
+				
+				writer.write("\n" + line);
 			}
 			
 			writer.close();
@@ -138,5 +139,20 @@ public class DataCompiler {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static <T> Set<T> intersect(Set<T> A, Set<T> B) {
+		Set<T> AB = new HashSet<T>();
+		
+		for (T a : A) {
+			for (T b : B) {
+				
+				if (a.equals(b)) {
+					AB.add(a);
+				}
+			}
+		}
+		
+		return AB;
 	}
 }
