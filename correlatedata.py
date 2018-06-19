@@ -7,10 +7,11 @@ def drop_x_row(df, x, column):
      df_true_false_values = df[df[column] == x]
      df = df.drop(df_true_false_values.index, axis=0)
      return df
-#df = drop_x_row(df, 0,"bmi")
+df = drop_x_row(df, 0,"family_mother_smoke_yes")
+df = drop_x_row(df, 0, "family_father_smoke_yes")
 df = drop_x_row(df, "No", "family_mother_smoke_yes")
 df = drop_x_row(df, "No", "family_father_smoke_yes")
-print(df["family_mother_smoke_yes"])
+print(df)
 arr = list(df)
 """
 for i in range(51,143):
