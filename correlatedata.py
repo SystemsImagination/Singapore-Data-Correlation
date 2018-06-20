@@ -8,14 +8,6 @@ def drop_x_row(df, x, column):
      df = df.drop(df_true_false_values.index, axis=0)
      return df
 """
-df = drop_x_row(df, 0,"family_mother_smoke_yes")
-df = drop_x_row(df, 0, "family_father_smoke_yes")
-df = drop_x_row(df, "No", "family_mother_smoke_yes")
-df = drop_x_row(df, "No", "family_father_smoke_yes")
-print(df)
-arr = list(df)
-"""
-"""
 for i in range(51,143):
 	for j in range(51, 143):
 		corr = df[arr[i]].corr(df[arr[j]])
@@ -31,9 +23,31 @@ for i in range(0, len(df.axes[0])):
 		if df.ix[i, arr.index("allergic_rhinitis_itchy_eyes")] == "Yes":
 			if df.ix[i, arr.index("allergic_rhinitis_itchy_nose_intermittent")] == "Yes":
 				count1 = count1 + 1
+print(len(df.axes[0]))
+
 print(count1)
-prob_of_b_in_a = count1/(len(df.axes[0]) * 3)
-print(prob_of_b_in_a)
+prob_of_c_in_b_in_a = count1/(len(df.axes[0]) * 3)
+print(prob_of_c_in_b_in_a)
+
+def sort_row(df,col):
+	new_df = df[col]
+	sorted_col = new_df.sort_index(ascending=True)
+	df[col] = sorted_col
+	return df
+df2 = sort_row(df, "[sgp130]")
+print(df2)
+"""
+def drop_middle_25(df, col):
+	df = sort_row(df, col)
+	total_values = len(df.axes[0])
+	lower_bound = int(total_values * 0.25)
+	upper_bound = int(total_values * 0.75)
+	for i in range(lower_bound, upper_bound):
+		df = df.drop(i, df.ix[arr.index(col)])
+	return df
+df2 = drop_middle_25(df, "[sgp130]")
+print(df2["[sgp130]"])
+"""
 def add_two_columns_together(df, col1, col2):
 	df["sum"] = df[col1] + df[col2]
 	return df
