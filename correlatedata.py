@@ -1,5 +1,6 @@
 import pandas as pd
 df = pd.read_excel("C:\\Users\\Groot\\Documents\\all data.xlsx", sheet = 1)
+
 df.fillna(0, inplace=True)
 
 
@@ -7,14 +8,6 @@ def drop_x_row(df, x, column):
      df_true_false_values = df[df[column] == x]
      df = df.drop(df_true_false_values.index, axis=0)
      return df
-"""
-for i in range(51,143):
-	for j in range(51, 143):
-		corr = df[arr[i]].corr(df[arr[j]])
-		if corr >= 0.5 and arr[i] != arr[j]:
-			print(arr[i] + " to " + arr[j])
-			print(corr)
-"""
 
 count1 = 0
 
@@ -40,7 +33,8 @@ def sort_column(df,col): #bubble sort algorithm
 				bad_list[i], bad_list[i+1] = bad_list[i+1], bad_list[i]
 	return bad_list
 
-df2 = sort_column(df, "[sgp130]")
+list1 = sort_column(df, "[IL-23]")
+list2 = sort_column(df, "[EGF]")
 
 
 def drop_middle_25(arr):
@@ -50,47 +44,38 @@ def drop_middle_25(arr):
 	for i in range(lower_bound, upper_bound):
 		arr1.append(arr[i])
 	return arr1
-df2 = drop_middle_25(df2)
-
-for i in range(0, len(df2)):
-	df = drop_x_row(df, df2[i], "[sgp130]")
-
-
-df.sort_values(["[sgp130]"], ascending = True, inplace = True)
-
-print(df["[sgp130]"])
-indeces = list(df.index.values)
+list1 = drop_middle_25(list1)
+list2 = drop_middle_25(list2)
+df1 = df
+df3 = df
+for i in range(0, len(list2)):
+	df3 = drop_x_row(df3, list2[i], "[EGF]")
+for i in range(0, len(list1)):
+	df1 = drop_x_row(df1, list1[i], "[IL-23]")
 
 
-for i in range(0, int((len(df.axes[0]))/2)):
+df1.sort_values(["[IL-23]"], ascending = True, inplace = True)
+df3.sort_values(["[EGF]"], ascending = True, inplace = True)
+
+print(df1["[IL-23]"])
+print(df3["[EGF]"])
+indeces1 = list(df1.index.values)
+indeces2 = list(df3.index.values)
+value_index = []
+for i in range(0, len(indeces2)):
+	for j in range(0, len(indeces1)):
+		if indeces2[i] == indeces1[j]:
+			value_index.append(indeces2[i])
+print(value_index)
+
+
+
+for i in range(int(len(value_index)/2), int(len(value_index))):
 	arr = list(df)
-	if df.ix[indeces[i], arr.index("allergic_rhinitis_any_nose_problem")] == "Yes":
-		if df.ix[indeces[i], arr.index("allergic_rhinitis_itchy_eyes")] == "Yes":
-			if df.ix[indeces[i], arr.index("allergic_rhinitis_itchy_nose_intermittent")] == "Yes":
+	if df.ix[value_index[i], arr.index("allergic_rhinitis_any_nose_problem")] == "Yes":
+		if df.ix[value_index[i], arr.index("allergic_rhinitis_itchy_eyes")] == "Yes":
+			if df.ix[value_index[i], arr.index("allergic_rhinitis_nose_troublesome_symptoms")] == "Yes":
 				count1 = count1 + 1
-print(count1/(len(df.axes[0]) * 3))
+print(count1/(len(value_index) * 3))
 
-"""
-def add_two_columns_together(df, col1, col2):
-	df["sum"] = df[col1] + df[col2]
-	return df
-
-"""
-"""
-def probability_of_b_including_a(df, a, b, col1, col2):
-	arr = list(df)
-	a_count = 0
-	loc_of_col1 = arr.index(col1)
-	loc_of_col2 = arr.index(col2)	b_count = 0
-
-	for i in range(0, len(df.index)):
-		if df.ix[i, loc_of_col1] == b:
-			b_count = b_count + 1
-	for i in range(0, len(df.index)):
-		if df.ix[i, loc_of_col2] == a:
-			a_count = a_count + 1
-	prob_of_b_and_a = (a_count/len(df.axes[0])) * (b_count/len(df.axes[0]))
-	return prob_of_b_and_a
-	print(probability_of_b_including_a(df, "Yes", "Yes", "allergic_rhinitis_nose_bleed_no", "allergic_rhinitis_nose_bleed_persistent"))
-#def probability(df, col1, col2):
-"""
+ 
