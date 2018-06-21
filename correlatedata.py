@@ -17,48 +17,72 @@ for i in range(51,143):
 """
 
 count1 = 0
-for i in range(0, len(df.axes[0])):
-	arr = list(df)
-	if df.ix[i, arr.index("allergic_rhinitis_any_nose_problem")] == "Yes":
-		if df.ix[i, arr.index("allergic_rhinitis_itchy_eyes")] == "Yes":
-			if df.ix[i, arr.index("allergic_rhinitis_itchy_nose_intermittent")] == "Yes":
-				count1 = count1 + 1
+
 print(len(df.axes[0]))
 
-print(count1)
-prob_of_c_in_b_in_a = count1/(len(df.axes[0]) * 3)
-print(prob_of_c_in_b_in_a)
 
-def sort_row(df,col):
-	new_df = df[col]
-	sorted_col = new_df.sort_index(ascending=True)
-	df[col] = sorted_col
-	return df
-df2 = sort_row(df, "[sgp130]")
-print(df2)
-"""
-def drop_middle_25(df, col):
-	df = sort_row(df, col)
-	total_values = len(df.axes[0])
-	lower_bound = int(total_values * 0.25)
-	upper_bound = int(total_values * 0.75)
+
+def column_to_list(df, col):
+	array = list(df)
+	arr = []
+	for i in range(0, len(df.axes[0])):
+		arr.append(df.ix[i, col])
+	return arr
+def sort_column(df,col): #bubble sort algorithm
+	bad_list = column_to_list(df, col) 
+	length = len(bad_list) - 1
+	sorted = False
+	while not sorted:
+		sorted = True
+		for i in range(length):
+			if bad_list[i] > bad_list[i+1]:
+				sorted = False
+				bad_list[i], bad_list[i+1] = bad_list[i+1], bad_list[i]
+	return bad_list
+
+df2 = sort_column(df, "[sgp130]")
+
+
+def drop_middle_25(arr):
+	upper_bound = int(0.75*len(arr) - 1)
+	lower_bound = int(0.25*len(arr) - 1)
+	arr1 = []
 	for i in range(lower_bound, upper_bound):
-		df = df.drop(i, df.ix[arr.index(col)])
-	return df
-df2 = drop_middle_25(df, "[sgp130]")
-print(df2["[sgp130]"])
+		arr1.append(arr[i])
+	return arr1
+df2 = drop_middle_25(df2)
+
+for i in range(0, len(df2)):
+	df = drop_x_row(df, df2[i], "[sgp130]")
+
+
+df.sort_values(["[sgp130]"], ascending = True, inplace = True)
+
+print(df["[sgp130]"])
+indeces = list(df.index.values)
+
+
+for i in range(0, int((len(df.axes[0]))/2)):
+	arr = list(df)
+	if df.ix[indeces[i], arr.index("allergic_rhinitis_any_nose_problem")] == "Yes":
+		if df.ix[indeces[i], arr.index("allergic_rhinitis_itchy_eyes")] == "Yes":
+			if df.ix[indeces[i], arr.index("allergic_rhinitis_itchy_nose_intermittent")] == "Yes":
+				count1 = count1 + 1
+print(count1/(len(df.axes[0]) * 3))
+
 """
 def add_two_columns_together(df, col1, col2):
 	df["sum"] = df[col1] + df[col2]
 	return df
 
 """
+"""
 def probability_of_b_including_a(df, a, b, col1, col2):
 	arr = list(df)
 	a_count = 0
-	b_count = 0
 	loc_of_col1 = arr.index(col1)
-	loc_of_col2 = arr.index(col2)
+	loc_of_col2 = arr.index(col2)	b_count = 0
+
 	for i in range(0, len(df.index)):
 		if df.ix[i, loc_of_col1] == b:
 			b_count = b_count + 1
