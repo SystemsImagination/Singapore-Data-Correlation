@@ -33,8 +33,8 @@ def sort_column(df,col): #bubble sort algorithm
 				bad_list[i], bad_list[i+1] = bad_list[i+1], bad_list[i]
 	return bad_list
 
-list1 = sort_column(df, "[IL-23]")
-list2 = sort_column(df, "[EGF]")
+list1 = sort_column(df, "[sIL-2Ra]")
+list2 = sort_column(df, "[GM-CSF]")
 
 
 def drop_middle_25(arr):
@@ -49,16 +49,16 @@ list2 = drop_middle_25(list2)
 df1 = df
 df3 = df
 for i in range(0, len(list2)):
-	df3 = drop_x_row(df3, list2[i], "[EGF]")
+	df3 = drop_x_row(df3, list2[i], "[GM-CSF]")
 for i in range(0, len(list1)):
-	df1 = drop_x_row(df1, list1[i], "[IL-23]")
+	df1 = drop_x_row(df1, list1[i], "[sIL-2Ra]")
 
 
-df1.sort_values(["[IL-23]"], ascending = True, inplace = True)
-df3.sort_values(["[EGF]"], ascending = True, inplace = True)
+df1.sort_values(["[sIL-2Ra]"], ascending = True, inplace = True)
+df3.sort_values(["[GM-CSF]"], ascending = True, inplace = True)
 
-print(df1["[IL-23]"])
-print(df3["[EGF]"])
+print(df1["[sIL-2Ra]"])
+print(df3["[GM-CSF]"])
 indeces1 = list(df1.index.values)
 indeces2 = list(df3.index.values)
 value_index = []
@@ -72,10 +72,13 @@ print(value_index)
 
 for i in range(int(len(value_index)/2), int(len(value_index))):
 	arr = list(df)
-	if df.ix[value_index[i], arr.index("allergic_rhinitis_any_nose_problem")] == "Yes":
-		if df.ix[value_index[i], arr.index("allergic_rhinitis_itchy_eyes")] == "Yes":
-			if df.ix[value_index[i], arr.index("allergic_rhinitis_nose_troublesome_symptoms")] == "Yes":
+	if df.ix[value_index[i], arr.index("mother_asthma")] == "Yes": #a
+		if df.ix[value_index[i], arr.index("father_asthma")] == "Yes": #b
+			if df.ix[value_index[i], arr.index("asthma_diagnosed")] == "Yes": #c
 				count1 = count1 + 1
-print(count1/(len(value_index) * 3))
+print((count1/(len(value_index) * 3))*100)
+
+
+
 
  
