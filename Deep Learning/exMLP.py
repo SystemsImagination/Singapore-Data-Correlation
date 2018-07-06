@@ -147,7 +147,7 @@ class MLP:
         print("Finished learning.")
 
 if __name__ == "__main__":
-    reader = open("cohort.csv", "r")
+    reader = open("phen-lipids_discrete.csv", "r")
     header = reader.readline().split(",") 
     
     training_sets = []
@@ -156,10 +156,10 @@ if __name__ == "__main__":
     while line != "":
         data = line.split(",")
         
-        explanatory = [0.0 if x=="?" else float(x) for x in data[2:115]]
+        explanatory = [0.0 if x=="?" else float(x) for x in data[289:]]
 
 
-        response = [1 if x == "Yes" else 0 for x in data[115:304]]
+        response = [1 if x == "Yes" else 0 for x in data[1:288]]
         if not explanatory or not response:
             line = reader.readline()
             continue
@@ -179,22 +179,12 @@ if __name__ == "__main__":
     def softplus(z):
         return np.log(1.0+np.exp(z))
 
-    def TBR(z): # tight bounds rectifier (idk i just made it up)
-        w = np.ndarray(z.shape)
-        shape = z.shape
-        
+    def TBR(z): # tight bounds rectifier (idk i just made it up)        
         F = lambda x: np.tanh(softplus(x))
         
-        if len(shape) == 1:
-            for i in range(len(z)):
-                w[i] = F(z[i])
-        else:
-            for i in range(len(z)):
-                for j in range(len(z[i])):
-                    w[i, j] = F(z[i, j])
-        return w
+        return F(z)
     
-    MLP = MLP(len(training_sets[0]), len(actual[0]), num_hl=20, 
+    MLP = MLP(len(training_sets[0]), len(actual[0]), num_hl=50, 
               num_hlnodes=75, 
               af=TBR, 
               regularization=0.5)

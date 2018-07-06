@@ -90,5 +90,8 @@ def train_RBM(training_sets):
     
     return W, A, B
 
+def compute_importance(w, std_dev):
+    return std_dev * sum([np.abs(x) for x in w])
+
 if __name__ == "__main__":
     

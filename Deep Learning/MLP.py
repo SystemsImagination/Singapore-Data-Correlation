@@ -13,7 +13,6 @@ LEARNING_RATE = 0.001
 MOMENTUM_RATE = 0.1
 EPS = 0.000001
 
-# Script for running a GAN model.
 X = []
 class MLP:
     # class for a multilayer perceptron
@@ -54,7 +53,10 @@ class MLP:
         
         return A
 
-    def train(self, training_sets, actual, epochs=10):
+    def train(self, training_sets, actual, epochs=10, use_softmax=False):
+        softmax = lambda z: np.exp(z) / (np.sum(np.exp(z)))
+        # softmax should be true if using multinomial classifier.
+        
         # trains the MLP on the training sets
         # training_sets is a list of x_vectors
         # actual is a list of y-vectors
@@ -80,9 +82,13 @@ class MLP:
                 A = []
                 a = x
                 
-                for W in self.weights:
+                for i in range(len(self.weights)):
+                    W = self.weights[i]
                     A.append(a)
-                    a = self.activation(W.dot(a))
+                    if i == len(self.weights)-1 and use_softmax:
+                        a = softmax(W.dot(a))
+                    else:
+                        a = self.activation(W.dot(a))
                 # do not append last a, because that is prediction.
                 error = []
                 
@@ -141,8 +147,40 @@ class MLP:
             first_mom_update = False
         print("Finished learning.")
 
+def make_discrete(vector, NA_as_zero=True):
+    label_dict = {}
+    new_vector = []
+    k = 0 # next new key
+    
+    if NA_as_zero:
+        label_dict["NA"] = 0
+        k += 1
+    
+    for y in vector:
+        if y not in label_dict.keys():
+            label_dict[y] = k
+            new_vector.append(k)
+            k += 1
+        else:
+            new_vector.append(label_dict[y])
+    
+    return new_vector, label_dict
+
+def rank_normalize(training_sets):
+    new_ts = training_sets
+    new_ts = np.asarray(new_ts)
+    for i in range(new_ts.shape[1]):
+        # for each col
+        sorted_col = np.sort(new_ts[:, i])
+        rank_dict = {sorted_col[i] : i for i in range(len(sorted_col))}
+        for j in range(new_ts.shape[0]):
+            new_ts[j][i] = rank_dict[new_ts[j][i]]
+    
+    return new_ts
+    
+
 if __name__ == "__main__":
-    reader = open("cohort.csv", "r")
+    reader = open("cohort_whatisnormal_MODDED.csv", "r")
     header = reader.readline().split(",") 
     
     training_sets = []
@@ -151,10 +189,12 @@ if __name__ == "__main__":
     while line != "":
         data = line.split(",")
         
-        explanatory = [0.0 if x=="?" else float(x) for x in data[2:115]]
+        explanatory = [0.0 if x=="?" or x=="NA" else float(x) for x in data[33:137]]
 
-
-        response = [1 if x == "Yes" else 0 for x in data[115:304]]
+        #response = data[192:210]
+        #response = [data[212], data[214], data[216], data[217]]
+        response=data[235:265]
+        
         if not explanatory or not response:
             line = reader.readline()
             continue
@@ -164,6 +204,29 @@ if __name__ == "__main__":
         line = reader.readline()
     print("finished reading.")
     
+    d_res = []
+    print(actual)
+    for i in range(len(actual[0])):
+        col = []
+        for j in range(len(actual)):
+            col.append(actual[j][i])
+        temp, label_dict = make_discrete(col)
+        print("Response variable\t|" + str(i))
+        for item in label_dict.items():
+            k, v = item
+            print("\t" + str(k) + "\t:\t" + str(v))
+        d_res.append(temp)
+        
+    # want to get transpose of d_res
+    temp = []
+    for i in range(len(d_res[0])):
+        row = []
+        for j in range(len(d_res)):
+            row.append(d_res[j][i])
+        temp.append(row)
+    d_res = temp
+    actual = d_res
+    
     def polylog(z, n=3):
         w = z
         for _ in range(n):
@@ -171,28 +234,10 @@ if __name__ == "__main__":
         return w
     def sigmoid(z):
         return 1.0 / (1.0 + np.exp(-z))
+    def softmax(z):
+        return np.exp(z) / np.sum(np.exp(z))
     def softplus(z):
         return np.log(1.0+np.exp(z))
-    def ELU(z):
-        w = np.ndarray(z.shape)
-        shape = z.shape
-        
-        F = np.tanh
-        
-        if len(shape) == 1:
-            for i in range(len(z)):
-                if z[i] >= 0.0:
-                    w[i] = F(z[i])
-                else:
-                    w[i] = (0.001*(np.exp(z[i])-1))
-        else:
-            for i in range(len(z)):
-                for j in range(len(z[i])):
-                    if z[i, j] >= 0.0:
-                        w[i, j] = F(z[i, j])
-                    else:
-                        w[i, j] = (0.001*(np.exp(z[i, j])-1))
-        return w
     
     def TBR(z): # tight bounds rectifier
         w = np.ndarray(z.shape)
@@ -209,21 +254,25 @@ if __name__ == "__main__":
                     w[i, j] = F(z[i, j])
         return w
     
-    MLP = MLP(len(training_sets[0]), len(actual[0]), num_hl=50, 
+    
+    training_sets = rank_normalize(training_sets)
+    print(training_sets)
+    
+    MLP = MLP(len(training_sets[0]), len(actual[0]), num_hl=200, 
               num_hlnodes=75, 
-              af=sigmoid, 
+              af=TBR, 
               regularization=0.5)
 
-    MLP.train(training_sets, actual, epochs=2000)
+    MLP.train(training_sets, actual, epochs=2000, use_softmax=True)
     # save weights and output data
     for i in range(len(MLP.weights)):
         W = MLP.weights[i]
-        np.save("SiGMD/W_" + str(i) + ".npy", W)
+        np.save("TBR_3/W_" + str(i) + ".npy", W)
     
     for i in range(len(training_sets)):
         p = MLP.predict(training_sets[i])
         
-        writer = open("SiGMD/results/output_TS-" + str(i) + ".tsv", "w+")
+        writer = open("TBR_3/results/output_TS-" + str(i) + ".tsv", "w+")
         writer.write("var_num\tP-A\tGOOD?")
         num_good = 0
         for j in range(len(p)):
