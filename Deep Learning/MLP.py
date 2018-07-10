@@ -8,72 +8,169 @@ Created on Thu Jun 21 10:59:48 2018
 
 import numpy as np
 import scipy.stats.mstats as sp
-
-LEARNING_RATE = 0.001
-MOMENTUM_RATE = 0.1
-EPS = 0.000001
+from activations import *
+from adjustments import *
 
 X = []
-class MLP:
+class LogisticMLP:
     # class for a multilayer perceptron
     # activation is tanh.
-    
-    def __init__(self, num_inputs, num_outputs, num_hl=1, 
-                 num_hlnodes=10, af=np.tanh, regularization=0.0):
+
+    def __init__(self, num_inputs, num_outputs, num_hl=1,
+                 num_hlnodes=10, af=tanh, regularization=0.0, use_biases=False):
         self.N = num_inputs
         self.M = num_outputs
         self.HL = num_hl
         self.HLN = num_hlnodes
         self.activation = af
         self.lambd = regularization
-        
+
         weights = []
         for i in range(num_hl + 1):
             if i == 0:
-                W = 2*np.random.rand(num_hlnodes, num_inputs)-1.0
+                W = (2*np.random.rand(num_hlnodes, num_inputs)-1.0)
                 #W = np.zeros((num_hlnodes, num_inputs))
             elif i == num_hl:
-                W = 2*np.random.rand(num_outputs, num_hlnodes)-1.0
+                W = (2*np.random.rand(num_outputs, num_hlnodes)-1.0)
                 #W = np.zeros((num_outputs, num_hlnodes))
             else:
-                W = 2*np.random.rand(num_hlnodes, num_hlnodes)-1.0
+                W = (2*np.random.rand(num_hlnodes, num_hlnodes)-1.0)
                 #W = np.zeros((num_hlnodes, num_hlnodes))
             weights.append(W)
         self.weights = weights
-        
-    
+
+        self.use_biases = use_biases
+        if use_biases:
+            biases = []
+            for i in range(num_hl + 1):
+                if i == num_hl:
+                    b = (2*np.random.rand(num_outputs,1) - 1.0)
+                else:
+                    b = (2*np.random.rand(num_hlnodes,1) - 1.0)
+                biases.append(b)
+            self.biases = biases
+
     def predict(self, inputs):
         # predicts output based on input
 
-        X = np.asarray(inputs)
-        A = X
-        
-        for W in self.weights:
-            A = self.activation(W.dot(A))
-        
-        return A
+        x = np.asarray(inputs)
+        a = x
 
-    def train(self, training_sets, actual, epochs=10, use_softmax=False):
-        softmax = lambda z: np.exp(z) / (np.sum(np.exp(z)))
-        # softmax should be true if using multinomial classifier.
-        
+        for i in range(len(self.weights)):
+            W = self.weights[i]
+            if self.use_biases:
+                b = self.biases[i]
+            else:
+                b = 0.0
+
+            a = self.activation(W.dot(a) + b)
+
+        return a
+
+    def stoc_train(self, training_sets, actual, epochs=10,
+            alpha=0.1, beta=0.1, EPS=0.01):
         # trains the MLP on the training sets
         # training_sets is a list of x_vectors
         # actual is a list of y-vectors
-        
-        prev_err = None
-        err = 0.0
-        
-        prev_delta = 0.0
-        
+
+        # alpha is LEARNING_RATE
+        # beta is MOMENTUM_RATE
+
         momentums = []
+        prev_J = 0
+        J = 0
         first_mom_update = True
         for e in range(epochs):
             print("Epoch: " + str(e))
-            D = []
-            
-            print(self.weights[0][0][0])
-            
+
+            for k in range(len(actual)):
+                y = np.asarray([actual[k]]).transpose()
+                x = np.asarray([training_sets[k]]).transpose()
+                A = []
+                a = x
+
+                for i in range(len(self.weights)):
+                    W = self.weights[i]
+                    A.append(a)
+
+                    if self.use_biases:
+                        b = self.biases[i]
+                    else:
+                        b = 0.0
+
+                    a = self.activation(W.dot(a) + b)
+
+                # do not append last a, because that is prediction.
+                error = []
+                j = 0.0
+                max_class = np.max(y) # get the maximal class in a
+                for c in range(max_class+1):
+                    bin_col = [[1.0] if y[i][0]==c else [0.0] for i in range(y.shape[0])]
+                    bin_col = np.asarray(bin_col) # make col vector
+                    j += bin_col.transpose().dot(np.log(a))
+                J = j # update objective
+
+                for i in range(self.HL+1):
+                    j = -i
+
+                    if i == 0:
+                        E = a-y
+                        error.append(E)
+                    else:
+                        W = self.weights[j]
+                        a = A[j]
+                        E = W.transpose().dot(error[-1]) * (a * (1 - a))
+                        error.append(E)
+
+                for i in range(len(self.weights)):
+                    W = self.weights[i]
+                    wd = error[-(i+1)].dot(A[i].transpose())
+
+                    if first_mom_update:
+                        dW = -alpha*(wd + self.lambd*W)
+                        momentums.append(dW)
+                    else:
+                        dW = beta*momentums[i] - alpha*(wd + self.lambd*W)
+                        momentums[i] = dW
+                    W = W - alpha*(wd + self.lambd*W) + beta*dW
+                    self.weights[i] = W
+
+                    if self.use_biases==True:
+                        bd = error[-(i+1)]
+                        b = self.biases[i]
+                        b = b - alpha*bd
+                        self.biases[i] = b
+
+                if not first_mom_update and k % 100 == 0:
+                    print("\tObjective: " + str(J))
+                    print("\tChange in Objective: " + str(J-prev_J))
+                    if np.abs(J-prev_J) < EPS and e > 10:
+                        print("Finished Learning")
+                        return
+                first_mom_update = False
+                prev_J = J
+        print("Finished learning.")
+
+    def batch_train(self, training_sets, actual, epochs=10,
+            alpha=0.1, beta=0.1, EPS=0.01):
+        # softmax should be true if using multinomial classifier.
+
+        # trains the MLP on the training sets
+        # training_sets is a list of x_vectors
+        # actual is a list of y-vectors
+
+        # alpha is LEARNING_RATE
+        # beta is MOMENTUM_RATE
+
+        momentums = []
+        prev_J = 0
+        first_mom_update = True
+        for e in range(epochs):
+            print("Epoch: " + str(e))
+            wD = [] # deltas for weights
+            bD = [] # deltas for biases
+
+            J = 0
             for k in range(len(actual)):
                 if k % 100==0:
                     print("\tTraining set: " + str(k))
@@ -81,131 +178,109 @@ class MLP:
                 x = np.asarray([training_sets[k]]).transpose()
                 A = []
                 a = x
-                
+
                 for i in range(len(self.weights)):
                     W = self.weights[i]
                     A.append(a)
-                    if i == len(self.weights)-1 and use_softmax:
-                        a = softmax(W.dot(a))
+
+                    if self.use_biases:
+                        b = self.biases[i]
                     else:
-                        a = self.activation(W.dot(a))
+                        b = 0.0
+
+                    a = self.activation(W.dot(a) + b)
+
                 # do not append last a, because that is prediction.
                 error = []
-                
+                j = 0.0
+                max_class = np.max(y) # get the maximal class in a
+                for c in range(max_class):
+                    bin_col = [[1.0] if y[i][0]==c else [0.0] for i in range(y.shape[0])]
+                    bin_col = np.asarray(bin_col) # make col vector
+                    j += bin_col.transpose().dot(np.log(a))
+                J += j # update objective
+
+
                 for i in range(self.HL+1):
                     j = -i
-                    
+
                     if i == 0:
-                        E = y - a
-                        err += E
+                        E = a-y
                         error.append(E)
                     else:
                         W = self.weights[j]
                         a = A[j]
                         E = W.transpose().dot(error[-1]) * (a * (1 - a))
                         error.append(E)
-                        
-                if not D:
+
+                if not wD:
                     for i in range(len(A)):
-                        D.append(error[-(i+1)].dot(A[i].transpose()))
+                        wD.append(error[-(i+1)].dot(A[i].transpose()))
+                        bD.append(error[-(i+1)])
                 else:
                     for i in range(len(A)):
-                        D[i] = D[i] + error[-(i+1)].dot(A[i].transpose())
-            
-            for i in range(len(D)):
-                d = D[i]
+                        wD[i] = wD[i] + error[-(i+1)].dot(A[i].transpose())
+                        bD[i] = bD[i] + error[-(i+1)]
+
+            for i in range(len(wD)):
+                wd = wD[i]
                 W = self.weights[i]
                 m = float(len(actual))
-                
+
                 if first_mom_update:
-                    dW = -LEARNING_RATE*((1.0/m)*d + self.lambd*W)
+                    dW = -alpha*((1.0/m)*wd + self.lambd*W)
                     momentums.append(dW)
                 else:
                     dW = momentums[i]
-                    dW = MOMENTUM_RATE*dW -LEARNING_RATE*((1.0/m)*d + self.lambd*W)
+                    dW = beta*dW -alpha*((1.0/m)*wd + self.lambd*W)
                     momentums[i] = dW
-                W = W + LEARNING_RATE*((1.0/m)*d + self.lambd*W) - MOMENTUM_RATE*dW
+                W = W - alpha*((1.0/m)*wd + self.lambd*W) + beta*dW
                 self.weights[i] = W
-            
-            err = np.log(np.abs(err) / (len(actual)+0.1))
-            print("\tError norm: " + str(np.linalg.norm(err)))
-            
+
+                if self.use_biases:
+                    # update biases using deltas
+                    bd = bD[i]
+                    b = self.biases[i]
+                    b = b - alpha*((1.0 / m)*bd)
+                    self.biases[i] = b
+
+            J = J / len(actual)
             if not first_mom_update:
-                print("\tPrev. Error norm: " + str(np.linalg.norm(
-                        prev_err
-                    )))
-                delta = np.linalg.norm(err - prev_err)
-                
-                print("\tChange in DELTA: " + str(delta-prev_delta))
-                if np.abs(delta-prev_delta) < EPS and e > 20:
+                print("\tObjective: " + str(J))
+                print("\tChange in Objective: " + str(J-prev_J))
+                if np.abs(J-prev_J) < EPS:
                     break
-                
-                prev_delta = delta
-            prev_err = err
-            err = 0.0
-            
+
+            prev_J = J
             first_mom_update = False
         print("Finished learning.")
 
-def make_discrete(vector, NA_as_zero=True):
-    label_dict = {}
-    new_vector = []
-    k = 0 # next new key
-    
-    if NA_as_zero:
-        label_dict["NA"] = 0
-        k += 1
-    
-    for y in vector:
-        if y not in label_dict.keys():
-            label_dict[y] = k
-            new_vector.append(k)
-            k += 1
-        else:
-            new_vector.append(label_dict[y])
-    
-    return new_vector, label_dict
-
-def rank_normalize(training_sets):
-    new_ts = training_sets
-    new_ts = np.asarray(new_ts)
-    for i in range(new_ts.shape[1]):
-        # for each col
-        sorted_col = np.sort(new_ts[:, i])
-        rank_dict = {sorted_col[i] : i for i in range(len(sorted_col))}
-        for j in range(new_ts.shape[0]):
-            new_ts[j][i] = rank_dict[new_ts[j][i]]
-    
-    return new_ts
-    
-
 if __name__ == "__main__":
     reader = open("cohort_whatisnormal_MODDED.csv", "r")
-    header = reader.readline().split(",") 
-    
+    header = reader.readline().split(",")
+
     training_sets = []
     actual = []
     line = reader.readline()
     while line != "":
         data = line.split(",")
-        
+
         explanatory = [0.0 if x=="?" or x=="NA" else float(x) for x in data[33:137]]
 
-        #response = data[192:210]
+        response = data[192:210]
         #response = [data[212], data[214], data[216], data[217]]
-        response=data[235:265]
-        
+        #response=data[235:265]
+
         if not explanatory or not response:
             line = reader.readline()
             continue
-    
+
         training_sets.append(explanatory)
         actual.append(response)
         line = reader.readline()
     print("finished reading.")
-    
+
     d_res = []
-    print(actual)
     for i in range(len(actual[0])):
         col = []
         for j in range(len(actual)):
@@ -216,7 +291,7 @@ if __name__ == "__main__":
             k, v = item
             print("\t" + str(k) + "\t:\t" + str(v))
         d_res.append(temp)
-        
+
     # want to get transpose of d_res
     temp = []
     for i in range(len(d_res[0])):
@@ -226,52 +301,24 @@ if __name__ == "__main__":
         temp.append(row)
     d_res = temp
     actual = d_res
-    
-    def polylog(z, n=3):
-        w = z
-        for _ in range(n):
-            w = np.log(np.abs(w))
-        return w
-    def sigmoid(z):
-        return 1.0 / (1.0 + np.exp(-z))
-    def softmax(z):
-        return np.exp(z) / np.sum(np.exp(z))
-    def softplus(z):
-        return np.log(1.0+np.exp(z))
-    
-    def TBR(z): # tight bounds rectifier
-        w = np.ndarray(z.shape)
-        shape = z.shape
-        
-        F = lambda x: np.tanh(softplus(x))
-        
-        if len(shape) == 1:
-            for i in range(len(z)):
-                w[i] = F(z[i])
-        else:
-            for i in range(len(z)):
-                for j in range(len(z[i])):
-                    w[i, j] = F(z[i, j])
-        return w
-    
-    
-    training_sets = rank_normalize(training_sets)
-    print(training_sets)
-    
-    MLP = MLP(len(training_sets[0]), len(actual[0]), num_hl=200, 
-              num_hlnodes=75, 
-              af=TBR, 
-              regularization=0.5)
 
-    MLP.train(training_sets, actual, epochs=2000, use_softmax=True)
+
+    training_sets = standardize(rank_normalize(training_sets))
+
+    MLP = LogisticMLP(len(training_sets[0]), len(actual[0]), num_hl=200,
+              num_hlnodes=75,
+              af=softmax,
+              regularization=0.5, use_biases=True)
+
+    MLP.stoc_train(training_sets, actual, epochs=2000, alpha=0.001, beta=0.001)
     # save weights and output data
     for i in range(len(MLP.weights)):
         W = MLP.weights[i]
         np.save("TBR_3/W_" + str(i) + ".npy", W)
-    
+
     for i in range(len(training_sets)):
         p = MLP.predict(training_sets[i])
-        
+
         writer = open("TBR_3/results/output_TS-" + str(i) + ".tsv", "w+")
         writer.write("var_num\tP-A\tGOOD?")
         num_good = 0
@@ -281,6 +328,6 @@ if __name__ == "__main__":
             if good == "GOOD":
                 num_good += 1
             writer.write("\n" + str(j) + "\t" + str(diff) + "\t" + good)
-        
+
         writer.write("\n\n" + str(num_good) + "\t" + str(len(p) - num_good))
         writer.close()

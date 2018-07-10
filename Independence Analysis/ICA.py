@@ -12,10 +12,10 @@ Created on Tue Jul  3 12:19:06 2018
 import numpy as np
 from sklearn.preprocessing import normalize
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.01
 MOMENTUM_RATE = 0.1
 density_f = np.tanh
-F = lambda z: (density_f(z + 0.00001) - density_f(z - 0.00001)) / (2*0.00001)
+F = lambda z: np.exp(-z) / (1.0 + np.exp(-z))
 
 def ICA(training_sets, num_iter=1000):
     X = training_sets # the noisy samples
@@ -40,9 +40,9 @@ def ICA(training_sets, num_iter=1000):
         LOGLOSS = 0.0
         for i in range(m):
             for j in range(n):
-                w = W[j]
+                w = W[j].transpose()
                 x = X[i].transpose()
-                LOGLOSS += np.linalg.norm(np.log(F(w.dot(x))) + np.log(np.abs(W)))
+                LOGLOSS += np.log(F(w.dot(x))) + np.log(np.linalg.det(W))
         LOGLOSS = LOGLOSS * (1/m)
         
         print("\tLOGLOSS: " + str(LOGLOSS))
@@ -52,13 +52,16 @@ def ICA(training_sets, num_iter=1000):
             dLL =LOGLOSS - prev_LOGLOSS
             print("\tChange in LOGLOSS: " + str(dLL))
             prev_LOGLOSS = LOGLOSS
+            
+            if dLL < 0.1:
+                break
         
         for x in X:
             x = np.asarray([x]).transpose() # make col vector
             cdf_M = []
             for w in W:
                 # for each row vector
-                cdf_M = 1.0 - 2*density_f(w.dot(x))
+                cdf_M.append(1.0 - 2*density_f(w.transpose().dot(x)[0]))
             cdf_M = np.asarray([cdf_M]).transpose()
             
             grad = cdf_M.dot(x.transpose()) + np.linalg.inv(W.transpose())
